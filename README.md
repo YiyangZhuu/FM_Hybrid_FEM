@@ -2,6 +2,13 @@
 
 This is a project for the course "_Physical modeling and simulation_". Topic is "2D Eigenvalue Analysis of Optical Fiber (Vector FEM)". The goal is first derive the theoretical description of the 2D FEM electromagnetic vector eigenvalue problem, implementing the hybrid vector-nodal FEM solver, computing and visualization of the first six modes. Potential extension is the analysis of triangular-core hollow optical fiber geometry (lossy case).
 
+## TODOs
+1. ** Implement the integral form. **
+2. ** Reuse the integral calculation in the example as much as possible. **
+3. ** Add plot to reconstruct the electrical field and the mode. **
+4. ** use a function to determine refractive index n based on n(x,y)? **
+
+
 ## Geometris
 
 The provided mesh in `Mesh_Files` is read as zero-based triangle
