@@ -1,7 +1,10 @@
 # Hybrid 2D FEM for Optical-Fiber Modes
 
-This folder is a separate scaffold; the original `EC_Edge_Elements` code is
-unchanged. The provided mesh in `Mesh_Files` is read as zero-based triangle
+This is a project for the course "Physical modeling and simulation". Topic is "2D Eigenvalue Analysis of Optical Fiber (Vector FEM)". The goal is first derive the theoretical description of the 2D FEM electromagnetic vector eigenvalue problem, implementing the hybrid vector-nodal FEM solver, computing and visualization of the first six modes. Potential extension is the analysis of triangular-core hollow optical fiber geometry (lossy case).
+
+## Geometris
+
+The provided mesh in `Mesh_Files` is read as zero-based triangle
 and `bcs.txt` edge connectivity, then converted to MATLAB's one-based indices.
 The edges in `bcs.txt` are mapped to mesh edges without assuming that all are
 on the exterior boundary; duplicate records are preserved.
@@ -39,9 +42,7 @@ on the exterior boundary; duplicate records are preserved.
 
 Implement the four cases in `calculate_integral.m`. Each case must return two
 3-by-3 local matrices, the element contributions to `A` and `B` in the
-derived pencil `A*x = lambda*B*x`, where `lambda = -beta^2`. No trial beta is
-passed to the assembler. `Ktz` and `Kzt` are intentionally independent; no
-optical-fiber weak-form integrals are inferred here.
+derived pencil `A*x = lambda*B*x`, where `lambda = -beta^2`. `Ktz` and `Kzt` are intentionally independent.
 
 ## Generalized eigenvalue solver
 
@@ -55,10 +56,7 @@ modes = solve_beta_modes(Afree, Bfree, sigma, numberOfModes, options);
 ```
 
 The matrices are assembled directly once with
-`[A, B, blocks] = assemble_hybrid_blocks(mesh, dofs)`. There is no
-`matrixAtBeta` callback because beta dependence is represented by the
-generalized eigenvalue parameter `lambda`, not by repeatedly assembling a
-different matrix.
+`[A, B, blocks] = assemble_hybrid_blocks(mesh, dofs)`.
 
 The solver applies the standard operator `(A - sigma*B)^(-1)*B` through
 linear solves, asks `eigs` for its largest-magnitude eigenvalues `nu`, and
@@ -74,10 +72,9 @@ only those listed edges by the outer-radius test, leaving room to identify
 other boundary-condition types separately later. PEC unknowns are identified
 but not yet applied to a matrix because assembly remains unimplemented.
 
-## Supervisor-requested setup
+## Global parameters
 
 `k0` and the relative permittivities are set in the main script and must match
 the optical-fiber specification. The mesh domain IDs are assigned as core =
 3, cladding = 2, and air = 1 based on their radial locations. The PEC radius
-is 0.5 mesh units, with a 1e-6 tolerance. After assembly is added, use the
-returned free DOF indices for elimination rather than a penalty method.
+is 0.5 mesh units, with a 1e-6 tolerance.
