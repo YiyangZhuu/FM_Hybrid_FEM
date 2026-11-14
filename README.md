@@ -1,6 +1,6 @@
 # Hybrid 2D FEM for Optical-Fiber Modes
 
-This is a project for the course "Physical modeling and simulation". Topic is "2D Eigenvalue Analysis of Optical Fiber (Vector FEM)". The goal is first derive the theoretical description of the 2D FEM electromagnetic vector eigenvalue problem, implementing the hybrid vector-nodal FEM solver, computing and visualization of the first six modes. Potential extension is the analysis of triangular-core hollow optical fiber geometry (lossy case).
+This is a project for the course "_Physical modeling and simulation_". Topic is "2D Eigenvalue Analysis of Optical Fiber (Vector FEM)". The goal is first derive the theoretical description of the 2D FEM electromagnetic vector eigenvalue problem, implementing the hybrid vector-nodal FEM solver, computing and visualization of the first six modes. Potential extension is the analysis of triangular-core hollow optical fiber geometry (lossy case).
 
 ## Geometris
 
