@@ -41,7 +41,7 @@ fprintf('Outer PEC: %d transverse edge DOFs, %d longitudinal nodal DOFs.\n', ...
 
 %% Matrix assembly
 % Once the local coefficient integrals are implemented, assemble A and B
-% [A, B, blocks] = assemble_hybrid_blocks(mesh, dofs);
+[A, B, blocks] = assemble_hybrid_blocks(mesh, dofs);
 
 %% Generalized eigenvalue solver
 % TODO: After deriving K(beta) = A - lambda*B with lambda = -beta^2,

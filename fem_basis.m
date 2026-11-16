@@ -24,7 +24,10 @@ function varargout = fem_basis(kind, varargin)
 end
 
 % returns basis: local Nij, curlBasis: curlNij
-% might be useful when calculating the integral
+% basis stores each of the three local edge basis fucntion value at 
+% each quadrature point, both in x and y.
+% curlBasis stores the curl of each of the three local edge basis functions 
+% at each quadrature point.
 function [basis, curlBasis] = vector_basis(coordinates, referencePoints)
     validate_triangle_inputs(coordinates, referencePoints);
     x = coordinates(:, 1);
