@@ -13,25 +13,28 @@ function [localA, localB] = calculate_integral(blockName, elementData)
     x = elementData.coordinates(:, 1);
     y = elementData.coordinates(:, 2);
     % det(J) = 2 * area, mapping to reference (0,0), (1,0), (0,1) triagle.
-    doubleArea = (x(2) - x(1)) * (y(3) - y(1)) - (x(3) - x(1)) * (y(2) - y(1));
+    Jac = abs((x(2) - x(1)) * (y(3) - y(1)) - (x(3) - x(1)) * (y(2) - y(1)));
 
     % Atz, Azt, Azz are zeros
     switch upper(blockName)
         case 'KTT'
-            localA = localA + doubleArea * (curlNt.' * (weights .* curlNt) - ...
+            localA = localA + Jac * (curlNt.' * (weights .* curlNt) - ...
                      elementData.k0^2 * elementData.relativePermittivity * ( ...
                      Nt(:,:,1).' * (weights .* Nt(:,:,1)) + ...
                      Nt(:,:,2).' * (weights .* Nt(:,:,2))));
-            localB = localB +
+            localB = localB + Jac * (...
+                     Nt(:,:,1).' * (weights .* Nt(:,:,1)) + ...
+                     Nt(:,:,2).' * (weights .* Nt(:,:,2)));
         case 'KTZ'
-            % TODO: Derive local A and B contributions for Ktz.
-            % localB = localB +
+            localB = localB - Jac * (...
+                     (Nt(:,:,1).' * weights) * gradNz(:,1).' + ...
+                     (Nt(:,:,2).' * weights) * gradNz(:,2).');
         case 'KZT'
-            % TODO: Derive local A and B contributions for Kzt independently.
-            % localB = localB +
+            % localB = localB + doubleArea * ()
         case 'KZZ'
-            % TODO: Derive local A and B contributions for Kzz.
-            % localB = localB +
+            localB = localB + Jac * (elementData.k0^2 * elementData.relativePermittivity * (...
+                     Nz.' * (weights .* Nz)) - ...
+                     (gradNz .* weights) * gradNz.');
         otherwise
             error('calculate_integral:UnknownBlock', ...
                 'Unknown matrix block "%s".', blockName);
