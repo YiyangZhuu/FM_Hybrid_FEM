@@ -22,9 +22,9 @@ on the exterior boundary; duplicate records are preserved.
   and numerical parameters, mesh/material assignment, PEC identification,
   assembly, eigenvalue solving, and post-processing sections.
 - `load_fem_mesh.m` loads the mesh and constructs canonical global edges,
-  element-to-edge maps, edge orientation signs, and topological exterior
-  edges. Exterior edges are found by triangle adjacency, not by assuming
-  every record in `bcs.txt` is an exterior edge.
+  element-to-edge maps, edge orientation signs, per-element edge lengths and
+  areas, and topological exterior edges. Exterior edges are found by triangle
+  adjacency, not by assuming every record in `bcs.txt` is an exterior edge.
 - `build_fem_dofs.m` numbers the unknowns: one transverse-vector DOF per
   global edge and one longitudinal-scalar DOF per node. It records local-to-
   global maps and the two index ranges in the combined vector `[E_t; E_z]`.
@@ -35,9 +35,8 @@ on the exterior boundary; duplicate records are preserved.
 - `fem_basis.m` provides first-order Nedelec edge functions, their scalar
   curls, first-order Lagrange shape functions and gradients, and degree-1/2
   triangle quadrature rules.
-- `calculate_integral.m` is the local element-matrix template. Given a block
-  and triangle data, it returns the local contributions to `A` and `B`.
-  Each block has its own TODO; the function errors until they are implemented.
+- `calculate_integral.m` computes local quadrature contributions to `A` and
+  `B`, using physical element area and the three local edge lengths.
 - `assemble_hybrid_blocks.m` calls `calculate_integral` for each element and
   assembles the four independent blocks of both global matrices `A` and `B`.
   Edge orientation is accounted for in every block involving vector DOFs.
@@ -47,9 +46,10 @@ on the exterior boundary; duplicate records are preserved.
 
 ## Remaining mathematical work
 
-Implement the four cases in `calculate_integral.m`. Each case must return two
-3-by-3 local matrices, the element contributions to `A` and `B` in the
-derived pencil `A*x = lambda*B*x`, where `lambda = -beta^2`. `Ktz` and `Kzt` are intentionally independent.
+Confirm the weak-form derivation and the signs and placement of the four
+blocks in `calculate_integral.m`. Each case returns two 3-by-3 local matrices,
+the element contributions to `A` and `B` in the pencil `A*x = lambda*B*x`,
+where `lambda = -beta^2`.
 
 ## Generalized eigenvalue solver
 
