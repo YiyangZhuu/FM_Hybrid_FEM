@@ -23,8 +23,9 @@ on the exterior boundary; duplicate records are preserved.
   assembly, eigenvalue solving, and post-processing sections.
 - `load_fem_mesh.m` loads the mesh and constructs canonical global edges,
   element-to-edge maps, edge orientation signs, per-element edge lengths and
-  areas, and topological exterior edges. Exterior edges are found by triangle
-  adjacency, not by assuming every record in `bcs.txt` is an exterior edge.
+  areas, and topological exterior edges. It requires triangle vertices to be
+  counterclockwise. Exterior edges are found by triangle adjacency, not by
+  assuming every record in `bcs.txt` is an exterior edge.
 - `build_fem_dofs.m` numbers the unknowns: one transverse-vector DOF per
   global edge and one longitudinal-scalar DOF per node. It records local-to-
   global maps and the two index ranges in the combined vector `[E_t; E_z]`.
