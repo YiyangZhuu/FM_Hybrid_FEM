@@ -41,6 +41,8 @@ function [matrixA, matrixB] = assemble_block(mesh, dofs, blockName, ...
         elementData.coordinates = mesh.nodes(elementData.nodes, :);
         elementData.domain = mesh.domains(element);
         elementData.edgeSigns = mesh.elementEdgeSigns(element, :);
+        elementData.elementEdgeLengths = mesh.elementEdgeLengths(element, :);
+        elementData.elementArea = mesh.elementArea(element);
         if isfield(mesh, 'relativePermittivity')
             elementData.relativePermittivity = mesh.relativePermittivity(element);
         end
