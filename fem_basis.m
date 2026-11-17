@@ -4,6 +4,12 @@
 %   [N, gradN] = fem_basis('nodal', coordinates, referencePoints)
 %   [points, weights] = fem_basis('quadrature', polynomialDegree)
 %
+% Input:
+% coordinates [3 x 2]: coordinates of the element's vertices
+% referencePoints: Gaussian quadrature points defined on reference coordinates
+% Output:
+% N [numReferencePoints x 3]: shape function values evaluated at reference points with reference shape functions
+% gradN [1 x 3]: gradient of the shape functions of the physical coordinates. Because nodal FEM is of order 1, the value is constant.
 % Vector functions are ordered on local directed edges (1->2, 2->3, 3->1).
 % Apply mesh.elementEdgeSigns when mapping local edge DOFs to global DOFs.
 % Quadrature weights integrate on the reference triangle (area 1/2).
