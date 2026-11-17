@@ -14,6 +14,10 @@
 % Apply mesh.elementEdgeSigns when mapping local edge DOFs to global DOFs.
 % Quadrature weights integrate on the reference triangle (area 1/2).
 
+% TODO: Input as element instead
+% TODO: we don't have to recalculate N every time there is a function call since it's evaluated
+% on reference element anyway.
+
 function varargout = fem_basis(kind, varargin)
     switch lower(kind)
         case 'vector'
@@ -50,7 +54,7 @@ function [basis, curlBasis] = vector_basis(coordinates, referencePoints)
                 (y(3) - y(1)), (x(1) - x(3)); ...
                 (y(1) - y(2)), (x(2) - x(1))] / doubleArea;
     referenceBarycentric = [1 - sum(referencePoints, 2), referencePoints];
-    physicalBarycentric = referenceBarycentric;
+    physicalBarycentric = referenceBarycentric; %TODO: This is wrong definition
     edgePairs = [1, 2; 2, 3; 3, 1];
     numberOfPoints = size(referencePoints, 1);
     basis = zeros(numberOfPoints, 3, 2);

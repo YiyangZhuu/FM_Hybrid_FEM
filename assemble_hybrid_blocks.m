@@ -46,7 +46,7 @@ function [matrixA, matrixB] = assemble_block(mesh, dofs, blockName, ...
         if isfield(mesh, 'relativePermittivity')
             elementData.relativePermittivity = mesh.relativePermittivity(element);
         end
-        if isfield(mesh, 'k0')
+        if isfield(mesh, 'k0') %TODO: there is only one universal k0
             elementData.k0 = mesh.k0;
         end
 
