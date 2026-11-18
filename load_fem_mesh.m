@@ -34,6 +34,34 @@ function mesh = load_fem_mesh(meshDirectory)
             'bcs.txt must contain valid two-node edge connectivity.');
     end
 
+    numberOfElements = size(elements, 1);
+    elementJacobian = zeros(2, 2, numberOfElements);
+    elementJacobianInverseTranspose = zeros(2, 2, numberOfElements);
+    elementJacobianDeterminant = zeros(numberOfElements, 1);
+
+    % Build the Jacobian first: J = [p2-p1, p3-p1].
+    % Its determinant is positive for counter-clockwise triangles.
+    for element = 1:numberOfElements
+        elementNodes = nodes(elements(element, :), :);
+        jacobian = [elementNodes(2, :) - elementNodes(1, :); ...
+                    elementNodes(3, :) - elementNodes(1, :)].';
+        determinant = det(jacobian);
+        if ~isfinite(determinant) || determinant == 0
+            error('load_fem_mesh:DegenerateElements', ...
+                'All triangle elements must have finite, nonzero area.');
+        end
+        if determinant < 0
+            % Swap the second and third nodes to reverse the triangle orientation.
+            elements(element, [2, 3]) = elements(element, [3, 2]);
+            elementNodes = nodes(elements(element, :), :);
+            jacobian = [elementNodes(2, :) - elementNodes(1, :); ...
+                        elementNodes(3, :) - elementNodes(1, :)].';
+            determinant = det(jacobian);
+        end
+        elementJacobian(:, :, element) = jacobian;
+        elementJacobianInverseTranspose(:, :, element) = inv(jacobian).';
+        elementJacobianDeterminant(element) = determinant;
+    end
 
     [edgeNodes, elementEdges, elementEdgeSigns] = ...
         build_edge_topology(elements);
@@ -53,17 +81,7 @@ function mesh = load_fem_mesh(meshDirectory)
     edgeDeltaY = [secondNodes(:, 2) - firstNodes(:, 2), ...
         thirdNodes(:, 2) - secondNodes(:, 2), ...
         firstNodes(:, 2) - thirdNodes(:, 2)];
-    doubleAreas = (secondNodes(:, 1) - firstNodes(:, 1)) .* ...
-        (thirdNodes(:, 2) - firstNodes(:, 2)) - ...
-        (thirdNodes(:, 1) - firstNodes(:, 1)) .* ...
-        (secondNodes(:, 2) - firstNodes(:, 2));
-    clockwiseElements = find(doubleAreas < 0, 1);
-    if ~isempty(clockwiseElements)
-        error('load_fem_mesh:ClockwiseElement', ...
-            ['Triangle element %d is clockwise; arrange its vertices ', ...
-            'counterclockwise in elements.txt.'], clockwiseElements);
-    end
-    elementArea = abs(doubleAreas) / 2;
+    elementArea = abs(elementJacobianDeterminant) / 2;
     % For counter-clockwise local edges, the right-hand perpendicular is
     % the outward unit normal.
     elementEdgeNormals = cat(3, edgeDeltaY, -edgeDeltaX);
@@ -93,6 +111,9 @@ function mesh = load_fem_mesh(meshDirectory)
     mesh.elementEdgeSigns = elementEdgeSigns;
     mesh.elementEdgeLengths = elementEdgeLengths;
     mesh.elementArea = elementArea;
+    mesh.elementJacobian = elementJacobian;
+    mesh.elementJacobianInverseTranspose = elementJacobianInverseTranspose;
+    mesh.elementJacobianDeterminant = elementJacobianDeterminant;
     mesh.elementEdgeNormals = elementEdgeNormals;
 end
 

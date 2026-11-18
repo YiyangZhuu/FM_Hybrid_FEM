@@ -43,6 +43,17 @@ function [matrixA, matrixB] = assemble_block(mesh, dofs, blockName, ...
         elementData.edgeSigns = mesh.elementEdgeSigns(element, :);
         elementData.elementEdgeLengths = mesh.elementEdgeLengths(element, :);
         elementData.elementArea = mesh.elementArea(element);
+        if isfield(mesh, 'elementJacobian')
+            elementData.elementJacobian = mesh.elementJacobian(:, :, element);
+        end
+        if isfield(mesh, 'elementJacobianInverseTranspose')
+            elementData.elementJacobianInverseTranspose = ...
+                mesh.elementJacobianInverseTranspose(:, :, element);
+        end
+        if isfield(mesh, 'elementJacobianDeterminant')
+            elementData.elementJacobianDeterminant = ...
+                mesh.elementJacobianDeterminant(element);
+        end
         if isfield(mesh, 'relativePermittivity')
             elementData.relativePermittivity = mesh.relativePermittivity(element);
         end

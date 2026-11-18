@@ -1,12 +1,13 @@
 % CALCULATE_INTEGRAL 
 % Return one block's local A and B coefficient matrices.
 % Called once per triangle and block by assemble_hybrid_blocks. elementData
-% contains coordinates, edge lengths, area, k0, and relativePermittivity.
+% contains coordinates, edge lengths, area, Jacobian data, k0, and
+% relativePermittivity.
 
 function [localA, localB] = calculate_integral(blockName, elementData)
-    [points, weights] = fem_basis('quadrature', 2);
-    [Nt, curlNt] = fem_basis('vector', elementData.coordinates, points);
-    [Nz, gradNz] = fem_basis('nodal', elementData.coordinates, points);
+    [~, weights] = fem_basis('quadrature'); % default order is 2
+    [Nt, curlNt] = fem_basis('vector', elementData, 'triangle');
+    [Nz, gradNz] = fem_basis('nodal', elementData, 'triangle');
     localA = zeros(3, 3);
     localB = zeros(3, 3);
     if ~isnumeric(elementData.elementEdgeLengths) || ...
@@ -25,7 +26,11 @@ function [localA, localB] = calculate_integral(blockName, elementData)
     edgeLengths = elementData.elementEdgeLengths;
     Nt = bsxfun(@times, Nt, reshape(edgeLengths, 1, 3, 1));
     curlNt = bsxfun(@times, curlNt, edgeLengths);
-    jacobianDeterminant = 2 * elementData.elementArea;
+    if isfield(elementData, 'elementJacobianDeterminant')
+        jacobianDeterminant = elementData.elementJacobianDeterminant;
+    else
+        jacobianDeterminant = 2 * elementData.elementArea;
+    end
     vectorMass = Nt(:, :, 1).' * (weights .* Nt(:, :, 1)) + ...
         Nt(:, :, 2).' * (weights .* Nt(:, :, 2));
     scalarMass = Nz.' * (weights .* Nz);
@@ -40,18 +45,17 @@ function [localA, localB] = calculate_integral(blockName, elementData)
             localB = jacobianDeterminant * vectorMass;
         case 'KTZ'
             localB = -jacobianDeterminant * ( ...
-                integratedNtX * gradNz(:, 1).' + ...
-                integratedNtY * gradNz(:, 2).');
+                integratedNtX * gradNz(1, :) + ...
+                integratedNtY * gradNz(2, :));
         case 'KZT'
-            % Where is grad Nz from?? there is no gradient. Check last page
-            % I'm not sure abt this
-            % localB = -jacobianDeterminant * ( ...
-            %     gradNz(:, 1) * integratedNtX.' + ...
-            %     gradNz(:, 2) * integratedNtY.');
+             localB = -jacobianDeterminant * ( ...
+                 gradNz(1, :).' * integratedNtX.' + ...
+                 gradNz(2, :).' * integratedNtY.');
+            % (- line integral)
         case 'KZZ'
             localB = jacobianDeterminant * ...
                 elementData.k0^2 * elementData.relativePermittivity * scalarMass - ...
-                elementData.elementArea * (gradNz * gradNz.');
+                elementData.elementArea * (gradNz.' * gradNz);
         otherwise
             error('calculate_integral:UnknownBlock', ...
                 'Unknown matrix block "%s".', blockName);

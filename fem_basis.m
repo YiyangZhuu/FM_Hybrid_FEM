@@ -1,33 +1,39 @@
-% FEM_BASIS 
-% First-order triangle bases and a basic reference-cell rule.
-%   [N, curlN] = fem_basis('vector', coordinates, referencePoints)
-%   [N, gradN] = fem_basis('nodal', coordinates, referencePoints)
-%   [points, weights] = fem_basis('quadrature', polynomialDegree)
+% FEM_BASIS
+% First-order triangle bases and reference-cell/edge quadrature rules.
+%   [N, curlN] = fem_basis('vector', element, rule)
+%   [N, gradN] = fem_basis('nodal', element, rule)
+%   [trianglePoints, triangleWeights, edgePoints, edgeWeights, edgeIds] = ...
+%       fem_basis('quadrature', polynomialDegree)
 %
 % Input:
-% coordinates [3 x 2]: coordinates of the element's vertices
-% referencePoints: Gaussian quadrature points defined on reference coordinates
+% element: triangle element data containing coordinates and precomputed
+%          elementJacobianInverseTranspose
+% rule: optional evaluation label 'triangle' or 'edge'; defaults to 'triangle'
+% edgePoints: reference coordinates of the 2-point Gauss rule on each edge
+% edgeWeights: parameter weights (sum 1 on every edge); multiply by physical
+%              edge length to obtain physical line-integration weights
+% edgeIds: local directed edge id (1=1->2, 2=2->3, 3=3->1)
 % Output:
 % N [numReferencePoints x 3]: shape function values evaluated at reference points with reference shape functions
-% gradN [1 x 3]: gradient of the shape functions of the physical coordinates. Because nodal FEM is of order 1, the value is constant.
+% gradN [2 x 3]: physical gradient of each nodal shape function, with each
+%               node stored as a column vector component (x/y by node).
 % Vector functions are ordered on local directed edges (1->2, 2->3, 3->1).
 % Apply mesh.elementEdgeSigns when mapping local edge DOFs to global DOFs.
 % Quadrature weights integrate on the reference triangle (area 1/2).
+% Reference nodal values, reference edge bases, and reference curls are cached.
 
-% TODO: Input as element instead
-% TODO: we don't have to recalculate N every time there is a function call since it's evaluated
-% on reference element anyway.
+% TODO:eliminate or the if case that catch that elementData does not contain that field.
+
+% Each element transforms them once with its Jacobian inverse transpose.
 
 function varargout = fem_basis(kind, varargin)
     switch lower(kind)
         case 'vector'
-            [varargout{1}, varargout{2}] = ...
-                vector_basis(varargin{1}, varargin{2});
+            [varargout{1:2}] = vector_basis(varargin{:});
         case 'nodal'
-            [varargout{1}, varargout{2}] = ...
-                nodal_basis(varargin{1}, varargin{2});
+            [varargout{1:2}] = nodal_basis(varargin{:});
         case 'quadrature'
-            [varargout{1}, varargout{2}] = triangle_rule(varargin{1});
+            [varargout{1:nargout}] = quadrature_rule(varargin{:});
         otherwise
             error('fem_basis:UnknownKind', 'Unknown basis kind "%s".', kind);
     end
@@ -38,59 +44,103 @@ end
 % each quadrature point, both in x and y.
 % curlBasis stores the curl of each of the three local edge basis functions 
 % at each quadrature point.
-function [basis, curlBasis] = vector_basis(coordinates, referencePoints)
-    validate_triangle_inputs(coordinates, referencePoints);
-    x = coordinates(:, 1);
-    y = coordinates(:, 2);
-    doubleArea = (x(2) - x(1)) * (y(3) - y(1)) - ...
-        (x(3) - x(1)) * (y(2) - y(1));
-    if doubleArea == 0
-        error('fem_basis:DegenerateTriangle', ...
-            'Vector basis is undefined on a degenerate triangle.');
+function [basis, curlBasis] = vector_basis(element, rule)
+    if nargin < 2
+        rule = 'triangle';
     end
+    referencePoints = basis_reference_points(rule);
+    validate_basis_inputs(element, rule);
 
-    % gradients of the three barycentric coordinates lambda_(1,2,3)
-    gradients = [(y(2) - y(3)), (x(3) - x(2)); ...
-                (y(3) - y(1)), (x(1) - x(3)); ...
-                (y(1) - y(2)), (x(2) - x(1))] / doubleArea;
-    referenceBarycentric = [1 - sum(referencePoints, 2), referencePoints];
-    physicalBarycentric = referenceBarycentric; %TODO: This is wrong definition
-    edgePairs = [1, 2; 2, 3; 3, 1];
-    numberOfPoints = size(referencePoints, 1);
-    basis = zeros(numberOfPoints, 3, 2);
-    curlBasis = zeros(numberOfPoints, 3);
+    [referenceBasis, referenceCurl] = reference_vector_basis(referencePoints);
+    jacobianInverseTranspose = element.elementJacobianInverseTranspose;
+    basis = zeros(size(referenceBasis));
+    for point = 1:size(referenceBasis, 1)
+        for edge = 1:size(referenceBasis, 2)
+            referenceVector = squeeze(referenceBasis(point, edge, :));
+            basis(point, edge, :) = jacobianInverseTranspose * referenceVector;
+        end
+    end
+    curlBasis = referenceCurl / jacobianDeterminant;
+end
 
-    for edge = 1:3
-        first = edgePairs(edge, 1);
-        second = edgePairs(edge, 2);
-        basis(:, edge, 1) = (physicalBarycentric(:, first) * gradients(second, 1) - ...
-                             physicalBarycentric(:, second) * gradients(first, 1));
-        basis(:, edge, 2) = (physicalBarycentric(:, first) * gradients(second, 2) - ...
-                             physicalBarycentric(:, second) * gradients(first, 2));
-        curlBasis(:, edge) = 2 * ...
-                            (gradients(first, 1) * gradients(second, 2) - ...
-                             gradients(first, 2) * gradients(second, 1));
+function [shapeValues, shapeGradients] = nodal_basis(element, rule)
+    if nargin < 2
+        rule = 'triangle';
+    end
+    referencePoints = basis_reference_points(rule);
+    validate_basis_inputs(element, rule);
+
+    % Depending on what rules we are using
+    shapeValues = reference_nodal_basis(referencePoints);
+    % Gradient is stored as a column vector
+    referenceGradients = [-1, 1, 0; 
+                          -1, 0, 1]; % Fixed value, independent of reference values
+    jacobianInverseTranspose = element.elementJacobianInverseTranspose;
+
+    shapeGradients = jacobianInverseTranspose * referenceGradients;
+end
+
+function referencePoints = basis_reference_points(rule)
+    if ~ischar(rule) && ~isstring(rule)
+        error('fem_basis:InvalidRule', ...
+            'Basis evaluation rule must be ''triangle'' or ''edge''.');
+    end
+    rule = lower(char(rule));
+    if ~any(strcmp(rule, {'triangle', 'edge'}))
+        error('fem_basis:InvalidRule', ...
+            'Basis evaluation rule must be ''triangle'' or ''edge''.');
+    end
+    [trianglePoints, ~, edgePoints] = quadrature_rule(2);
+    if strcmp(rule, 'triangle')
+        referencePoints = trianglePoints;
+    else
+        referencePoints = edgePoints;
     end
 end
 
-function [shapeValues, shapeGradients] = nodal_basis(coordinates, referencePoints)
-    validate_triangle_inputs(coordinates, referencePoints);
-    x = coordinates(:, 1);
-    y = coordinates(:, 2);
-    doubleArea = (x(2) - x(1)) * (y(3) - y(1)) - ...
-        (x(3) - x(1)) * (y(2) - y(1));
-    if doubleArea == 0
-        error('fem_basis:DegenerateTriangle', ...
-            'Nodal basis is undefined on a degenerate triangle.');
+function shapeValues = reference_nodal_basis(referencePoints)
+    persistent cache
+    if isempty(cache) || ~isequal(cache.referencePoints, referencePoints)
+        cache.referencePoints = referencePoints;
+        cache.shapeValues = [1 - sum(referencePoints, 2), referencePoints];
     end
-
-    shapeValues = [1 - sum(referencePoints, 2), referencePoints];
-    shapeGradients = [(y(2) - y(3)), (x(3) - x(2)); ...
-                    (y(3) - y(1)), (x(1) - x(3)); ...
-                    (y(1) - y(2)), (x(2) - x(1))] / doubleArea;
+    shapeValues = cache.shapeValues;
 end
 
-function [points, weights] = triangle_rule(polynomialDegree)
+function [basis, curlBasis] = reference_vector_basis(referencePoints)
+    persistent cache
+    if isempty(cache) || ~isequal(cache.referencePoints, referencePoints)
+        referenceGradients = [-1, -1; 1, 0; 0, 1];
+        referenceBarycentric = [1 - sum(referencePoints, 2), referencePoints];
+        edgePairs = [1, 2; 2, 3; 3, 1];
+        numberOfPoints = size(referencePoints, 1);
+        referenceBasis = zeros(numberOfPoints, 3, 2);
+        referenceCurl = zeros(numberOfPoints, 3);
+        for edge = 1:3
+            first = edgePairs(edge, 1);
+            second = edgePairs(edge, 2);
+            referenceBasis(:, edge, 1) = referenceBarycentric(:, first) * ...
+                referenceGradients(second, 1) - referenceBarycentric(:, second) * ...
+                referenceGradients(first, 1);
+            referenceBasis(:, edge, 2) = referenceBarycentric(:, first) * ...
+                referenceGradients(second, 2) - referenceBarycentric(:, second) * ...
+                referenceGradients(first, 2);
+            referenceCurl(:, edge) = 2 * ( ...
+                referenceGradients(first, 1) * referenceGradients(second, 2) - ...
+                referenceGradients(first, 2) * referenceGradients(second, 1));
+        end
+        cache.referencePoints = referencePoints;
+        cache.basis = referenceBasis;
+        cache.curl = referenceCurl;
+    end
+    basis = cache.basis;
+    curlBasis = cache.curl;
+end
+
+function varargout = quadrature_rule(polynomialDegree)
+    if nargin < 1 || isempty(polynomialDegree)
+        polynomialDegree = 2;
+    end
     if ~isnumeric(polynomialDegree) || ~isscalar(polynomialDegree) || ...
             ~any(polynomialDegree == [1, 2])
         error('fem_basis:UnsupportedQuadrature', ...
@@ -98,23 +148,61 @@ function [points, weights] = triangle_rule(polynomialDegree)
     end
 
     if polynomialDegree == 1
-        points = [1 / 3, 1 / 3];
-        weights = 1 / 2;
+        trianglePoints = [1 / 3, 1 / 3];
+        triangleWeights = 1 / 2;
     else
-        points = [1 / 6, 1 / 6; 2 / 3, 1 / 6; 1 / 6, 2 / 3];
-        weights = [1 / 6; 1 / 6; 1 / 6];
+        trianglePoints = [1 / 6, 1 / 6; 2 / 3, 1 / 6; 1 / 6, 2 / 3];
+        triangleWeights = [1 / 6; 1 / 6; 1 / 6];
     end
+
+    % Two-point Gauss rule on t in [0,1] for each directed local edge.
+    % It integrates polynomials through degree 3 along an edge.
+    gaussParameters = (1 / 2) + (1 / (2 * sqrt(3))) * [-1; 1];
+    edgePoints = [...
+        1 - gaussParameters, gaussParameters * 0; ...
+        gaussParameters, 1 - gaussParameters; ...
+        gaussParameters * 0, 1 - gaussParameters];
+    edgeWeights = 1 / 2 * ones(6, 1);
+    edgeIds = [1; 1; 2; 2; 3; 3];
+
+    varargout = {trianglePoints, triangleWeights, edgePoints, edgeWeights, edgeIds};
 end
 
-function validate_triangle_inputs(coordinates, referencePoints)
+function validate_basis_inputs(element, rule)
+    if ~isstruct(element) || ~isfield(element, 'coordinates')
+        error('fem_basis:InvalidElement', ...
+            'Element must be a struct containing coordinates.');
+    end
+    coordinates = element.coordinates;
     if ~isnumeric(coordinates) || ~isequal(size(coordinates), [3, 2]) || ...
             any(~isfinite(coordinates(:)))
         error('fem_basis:InvalidCoordinates', ...
             'Triangle coordinates must be a finite 3-by-2 array.');
     end
-    if ~isnumeric(referencePoints) || size(referencePoints, 2) ~= 2 || ...
-            any(~isfinite(referencePoints(:)))
-        error('fem_basis:InvalidReferencePoints', ...
-            'Reference points must be a finite N-by-2 array.');
+    if isfield(element, 'elementJacobianInverseTranspose')
+        jacobianInverseTranspose = element.elementJacobianInverseTranspose;
+        if ~isnumeric(jacobianInverseTranspose) || ...
+                ~isequal(size(jacobianInverseTranspose), [2, 2]) || ...
+                any(~isfinite(jacobianInverseTranspose(:)))
+            error('fem_basis:InvalidJacobianInverseTranspose', ...
+                'Element elementJacobianInverseTranspose must be a finite 2-by-2 matrix.');
+        end
+    end
+    if isfield(element, 'elementJacobianDeterminant') && ...
+            (~isnumeric(element.elementJacobianDeterminant) || ...
+             ~isscalar(element.elementJacobianDeterminant) || ...
+             ~isfinite(element.elementJacobianDeterminant) || ...
+             element.elementJacobianDeterminant <= 0)
+        error('fem_basis:InvalidJacobianDeterminant', ...
+            'Element elementJacobianDeterminant must be finite and positive.');
+    end
+    if ~ischar(rule) && ~isstring(rule)
+        error('fem_basis:InvalidRule', ...
+            'Basis evaluation rule must be ''triangle'' or ''edge''.');
+    end
+    rule = lower(char(rule));
+    if ~any(strcmp(rule, {'triangle', 'edge'}))
+        error('fem_basis:InvalidRule', ...
+            'Basis evaluation rule must be ''triangle'' or ''edge''.');
     end
 end
