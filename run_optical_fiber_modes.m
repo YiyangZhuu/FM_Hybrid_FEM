@@ -22,7 +22,6 @@ meshDirectory = fullfile(projectDirectory, 'Mesh_Files');
 mesh = load_fem_mesh(meshDirectory);
 dofs = build_fem_dofs(mesh);
 
-mesh.k0 = k0;
 mesh.relativePermittivity = nan(size(mesh.domains));
 mesh.relativePermittivity(mesh.domains == materialDomain.core) = epsilonR.core;
 mesh.relativePermittivity(mesh.domains == materialDomain.cladding) = epsilonR.cladding;
