@@ -42,6 +42,14 @@ function [matrixA, matrixB] = assemble_block(mesh, dofs, blockName, ...
         elementData.domain = mesh.domains(element);
         elementData.edgeSigns = mesh.elementEdgeSigns(element, :);
         elementData.elementEdgeLengths = mesh.elementEdgeLengths(element, :);
+        if isfield(mesh, 'elementEdgeNormals')
+            elementData.elementEdgeNormals = ...
+                squeeze(mesh.elementEdgeNormals(element, :, :));
+        end
+        if isfield(mesh, 'elementNormals')
+            elementData.elementNormals = ...
+                squeeze(mesh.elementNormals(element, :, :));
+        end
         elementData.elementArea = mesh.elementArea(element);
         if isfield(mesh, 'elementJacobian')
             elementData.elementJacobian = mesh.elementJacobian(:, :, element);

@@ -87,6 +87,10 @@ function mesh = load_fem_mesh(meshDirectory)
     elementEdgeNormals = cat(3, edgeDeltaY, -edgeDeltaX);
     elementEdgeNormals = elementEdgeNormals ./ ... % normalize
         reshape(elementEdgeLengths, [], 3, 1);
+    if ~isequal(size(elementEdgeNormals), [numberOfElements, 3, 2])
+        error('load_fem_mesh:InvalidElementNormals', ...
+            'Element edge normals must have size [numberOfElements, 3, 2].');
+    end
     if any(~isfinite(elementEdgeLengths(:))) || ...
             any(elementEdgeLengths(:) <= 0) || ...
             any(~isfinite(elementArea)) || any(elementArea <= 0)
@@ -115,6 +119,7 @@ function mesh = load_fem_mesh(meshDirectory)
     mesh.elementJacobianInverseTranspose = elementJacobianInverseTranspose;
     mesh.elementJacobianDeterminant = elementJacobianDeterminant;
     mesh.elementEdgeNormals = elementEdgeNormals;
+    mesh.elementNormals = elementEdgeNormals;
 end
 
 function [edgeNodes, elementEdges, elementEdgeSigns] = ...

@@ -1,6 +1,6 @@
 % FEM_BASIS
 % First-order triangle bases and reference-cell/edge quadrature rules.
-%   [N, curlN] = fem_basis('vector', element, rule)
+%   [N, curlN, basisNormal] = fem_basis('vector', element, rule)
 %   [N, gradN] = fem_basis('nodal', element, rule)
 %   [trianglePoints, triangleWeights, edgePoints, edgeWeights, edgeIds] = ...
 %       fem_basis('quadrature', polynomialDegree)
@@ -8,7 +8,10 @@
 % Input:
 % element: triangle element data containing coordinates and precomputed
 %          elementJacobianInverseTranspose
-% rule: optional evaluation label 'triangle' or 'edge'; defaults to 'triangle'
+% rule: optional evaluation label 'triangle', 'edge', or 'line'; defaults to 'triangle'
+% 'edge' returns physical vector values at edge quadrature points.
+% 'line' returns physical vector values in N and dot(N, edge normal) in basisNormal.
+% basisNormal is empty for 'triangle' and 'edge'.
 % edgePoints: reference coordinates of the 2-point Gauss rule on each edge
 % edgeWeights: parameter weights (sum 1 on every edge); multiply by physical
 %              edge length to obtain physical line-integration weights
@@ -29,7 +32,7 @@
 function varargout = fem_basis(kind, varargin)
     switch lower(kind)
         case 'vector'
-            [varargout{1:2}] = vector_basis(varargin{:});
+            [varargout{1:nargout}] = vector_basis(varargin{:});
         case 'nodal'
             [varargout{1:2}] = nodal_basis(varargin{:});
         case 'quadrature'
@@ -44,7 +47,7 @@ end
 % each quadrature point, both in x and y.
 % curlBasis stores the curl of each of the three local edge basis functions 
 % at each quadrature point.
-function [basis, curlBasis] = vector_basis(element, rule)
+function [basis, curlBasis, basisNormal] = vector_basis(element, rule)
     if nargin < 2
         rule = 'triangle';
     end
@@ -53,12 +56,33 @@ function [basis, curlBasis] = vector_basis(element, rule)
 
     [referenceBasis, referenceCurl] = reference_vector_basis(referencePoints);
     jacobianInverseTranspose = element.elementJacobianInverseTranspose;
-    basis = zeros(size(referenceBasis));
+    physicalBasis = zeros(size(referenceBasis));
     for point = 1:size(referenceBasis, 1)
         for edge = 1:size(referenceBasis, 2)
             referenceVector = squeeze(referenceBasis(point, edge, :));
-            basis(point, edge, :) = jacobianInverseTranspose * referenceVector;
+            physicalBasis(point, edge, :) = jacobianInverseTranspose * referenceVector;
         end
+    end
+
+    basisNormal = [];
+    if strcmp(lower(char(rule)), 'line')
+        edgeNormals = element_edge_normals(element);
+        [~, ~, ~, ~, edgeIds] = quadrature_rule(2);
+        basisNormal = zeros(size(referenceBasis, 1), size(referenceBasis, 2));
+        for point = 1:size(referenceBasis, 1)
+            edge = edgeIds(point);
+            normal = edgeNormals(edge, :);
+            basisNormal(point, :) = squeeze(physicalBasis(point, :, :)) * normal(:);
+        end
+    end
+    basis = physicalBasis;
+
+    if isfield(element, 'elementJacobianDeterminant')
+        jacobianDeterminant = element.elementJacobianDeterminant;
+    elseif isfield(element, 'elementArea')
+        jacobianDeterminant = 2 * element.elementArea;
+    else
+        jacobianDeterminant = abs(det(inv(jacobianInverseTranspose)));
     end
     curlBasis = referenceCurl / jacobianDeterminant;
 end
@@ -83,12 +107,12 @@ end
 function referencePoints = basis_reference_points(rule)
     if ~ischar(rule) && ~isstring(rule)
         error('fem_basis:InvalidRule', ...
-            'Basis evaluation rule must be ''triangle'' or ''edge''.');
+            'Basis evaluation rule must be ''triangle'', ''edge'', or ''line''.');
     end
     rule = lower(char(rule));
-    if ~any(strcmp(rule, {'triangle', 'edge'}))
+    if ~any(strcmp(rule, {'triangle', 'edge', 'line'}))
         error('fem_basis:InvalidRule', ...
-            'Basis evaluation rule must be ''triangle'' or ''edge''.');
+            'Basis evaluation rule must be ''triangle'', ''edge'', or ''line''.');
     end
     [trianglePoints, ~, edgePoints] = quadrature_rule(2);
     if strcmp(rule, 'triangle')
@@ -198,11 +222,32 @@ function validate_basis_inputs(element, rule)
     end
     if ~ischar(rule) && ~isstring(rule)
         error('fem_basis:InvalidRule', ...
-            'Basis evaluation rule must be ''triangle'' or ''edge''.');
+            'Basis evaluation rule must be ''triangle'', ''edge'', or ''line''.');
     end
     rule = lower(char(rule));
-    if ~any(strcmp(rule, {'triangle', 'edge'}))
+    if ~any(strcmp(rule, {'triangle', 'edge', 'line'}))
         error('fem_basis:InvalidRule', ...
-            'Basis evaluation rule must be ''triangle'' or ''edge''.');
+            'Basis evaluation rule must be ''triangle'', ''edge'', or ''line''.');
+    end
+    if strcmp(rule, 'line')
+        edgeNormals = element_edge_normals(element);
+        if ~isnumeric(edgeNormals) || ~isequal(size(edgeNormals), [3, 2]) || ...
+                any(~isfinite(edgeNormals(:)))
+            error('fem_basis:InvalidElementEdgeNormals', ...
+                'Element elementEdgeNormals must be a finite 3-by-2 array.');
+        end
+    end
+end
+
+function edgeNormals = element_edge_normals(element)
+    if isfield(element, 'elementEdgeNormals')
+        edgeNormals = element.elementEdgeNormals;
+    elseif isfield(element, 'elementNormals')
+        edgeNormals = element.elementNormals;
+    elseif isfield(element, 'normal')
+        edgeNormals = element.normal;
+    else
+        error('fem_basis:MissingElementEdgeNormals', ...
+            'Line-rule vector basis requires elementEdgeNormals or elementNormals.');
     end
 end
