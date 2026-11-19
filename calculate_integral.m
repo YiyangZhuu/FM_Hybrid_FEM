@@ -5,11 +5,13 @@
 % relativePermittivity.
 
 function [localA, localB] = calculate_integral(blockName, elementData)
-    [~, weights] = fem_basis('quadrature'); % default order is 2
+    [~, weights, ~, edgeWeights, edgeIds] = fem_basis('quadrature');
     [Nt, curlNt] = fem_basis('vector', elementData, 'triangle');
+    [~, ~, NtNormal] = fem_basis('vector', elementData, 'line');
     [Nz, gradNz] = fem_basis('nodal', elementData, 'triangle');
+    [NzLine, ~] = fem_basis('nodal', elementData, 'edge');
     localA = zeros(3, 3);
-    localB = zeros(3, 3);
+    localB = zeros(3, 3); %TODO: Is this preallocation? Do you really need this line?
     if ~isnumeric(elementData.elementEdgeLengths) || ...
             ~isequal(size(elementData.elementEdgeLengths), [1, 3]) || ...
             any(~isfinite(elementData.elementEdgeLengths)) || ...
@@ -26,17 +28,34 @@ function [localA, localB] = calculate_integral(blockName, elementData)
     edgeLengths = elementData.elementEdgeLengths;
     Nt = bsxfun(@times, Nt, reshape(edgeLengths, 1, 3, 1));
     curlNt = bsxfun(@times, curlNt, edgeLengths);
-    if isfield(elementData, 'elementJacobianDeterminant')
-        jacobianDeterminant = elementData.elementJacobianDeterminant;
-    else
-        jacobianDeterminant = 2 * elementData.elementArea;
-    end
+
+    % Line integral use different transformation than area integral
+    % This needs special handling
+    NtNormal = bsxfun(@times, NtNormal, reshape(edgeLengths, 1, 3));
+    % Physical edge lengths
+    edgeLengths = elementData.elementEdgeLengths;
+    % Assign each quadrature point its corresponding physical edge length
+    quadratureEdgeLengths = edgeLengths(edgeIds).';
+    % Transform reference line weights to physical line weights. 
+    % Equivalent to multiplying det J for area integral
+    physicalEdgeWeights = edgeWeights .* quadratureEdgeLengths;
+    % Boundary integral: integral (Nt dot n) Nz ds
+    weightedNzLine = bsxfun(@times, physicalEdgeWeights, NzLine);
+    lineIntegralNtNz = NtNormal.' * weightedNzLine;
+
+    jacobianDeterminant = elementData.elementJacobianDeterminant;
+
     vectorMass = Nt(:, :, 1).' * (weights .* Nt(:, :, 1)) + ...
         Nt(:, :, 2).' * (weights .* Nt(:, :, 2));
     scalarMass = Nz.' * (weights .* Nz);
     integratedNtX = Nt(:, :, 1).' * weights;
     integratedNtY = Nt(:, :, 2).' * weights;
 
+    % TODO: write area integral as a different term
+    % example: areaIntegralCurlCurl = jacobianDeterminant * ( ...
+    %            curlNt.' * (weights .* curlNt) - ...
+    %            elementData.k0^2 * elementData.relativePermittivity * vectorMass);
+    % This is for readability.
     switch upper(blockName)
         case 'KTT'
             localA = jacobianDeterminant * ( ...
@@ -48,10 +67,11 @@ function [localA, localB] = calculate_integral(blockName, elementData)
                 integratedNtX * gradNz(1, :) + ...
                 integratedNtY * gradNz(2, :));
         case 'KZT'
-             localB = -jacobianDeterminant * ( ...
-                 gradNz(1, :).' * integratedNtX.' + ...
-                 gradNz(2, :).' * integratedNtY.');
-            % (- line integral)
+             localB = -elementData.k0^2 * ( ...
+                        jacobianDeterminant * ( ...
+                            gradNz(1, :).'*integratedNtX.' + ...
+                            gradNz(2, :).'*integratedNtY.') ...
+                        - lineIntegralNtNz);
         case 'KZZ'
             localB = jacobianDeterminant * ...
                 k0^2 * elementData.relativePermittivity * scalarMass - ...
