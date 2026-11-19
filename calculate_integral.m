@@ -5,11 +5,9 @@
 % relativePermittivity.
 
 function [localA, localB] = calculate_integral(blockName, elementData)
-    [~, weights, ~, edgeWeights, edgeIds] = fem_basis('quadrature');
-    [Nt, curlNt] = fem_basis('vector', elementData, 'triangle');
-    [~, ~, NtNormal] = fem_basis('vector', elementData, 'line');
-    [Nz, gradNz] = fem_basis('nodal', elementData, 'triangle');
-    [NzLine, ~] = fem_basis('nodal', elementData, 'edge');
+    [~, weights] = fem_basis('quadrature');
+    [Nt, curlNt] = fem_basis('vector', elementData);
+    [Nz, gradNz] = fem_basis('nodal', elementData);
     localA = zeros(3, 3);
     localB = zeros(3, 3); %TODO: Is this preallocation? Do you really need this line?
                           % Not really, but for formality its better to have it imho. just preallocate it.
@@ -29,20 +27,6 @@ function [localA, localB] = calculate_integral(blockName, elementData)
     edgeLengths = elementData.elementEdgeLengths;
     Nt = bsxfun(@times, Nt, reshape(edgeLengths, 1, 3, 1));
     curlNt = bsxfun(@times, curlNt, edgeLengths);
-
-    % Line integral use different transformation than area integral
-    % This needs special handling
-    NtNormal = bsxfun(@times, NtNormal, reshape(edgeLengths, 1, 3));
-    % Physical edge lengths
-    edgeLengths = elementData.elementEdgeLengths; % is this redundant as line 29?
-    % Assign each quadrature point its corresponding physical edge length
-    quadratureEdgeLengths = edgeLengths(edgeIds).';
-    % Transform reference line weights to physical line weights. 
-    % Equivalent to multiplying det J for area integral
-    physicalEdgeWeights = edgeWeights .* quadratureEdgeLengths;
-    % Boundary integral: integral (Nt dot n) Nz ds
-    weightedNzLine = bsxfun(@times, physicalEdgeWeights, NzLine);
-    lineIntegralNtNz = NtNormal.' * weightedNzLine;
 
     jacobianDeterminant = elementData.elementJacobianDeterminant;
 
@@ -71,8 +55,7 @@ function [localA, localB] = calculate_integral(blockName, elementData)
              localB = -elementData.k0^2 * ( ...     % TODO: where does this k0 comes from? Do we have k0 here?
                         jacobianDeterminant * ( ...
                             gradNz(1, :).'*integratedNtX.' + ...
-                            gradNz(2, :).'*integratedNtY.') ...
-                        - lineIntegralNtNz);
+                            gradNz(2, :).'*integratedNtY.'));
         case 'KZZ'
             localB = jacobianDeterminant * ...
                 elementData.k0^2 * elementData.relativePermittivity * scalarMass - ...
