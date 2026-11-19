@@ -1,6 +1,7 @@
 %% Physical and numerical parameters
 k0 = 25;                      % Free-space wavenumber [1/m] between [18, 25]
-epsilonR.core = 2.16;           % Core relative permittivity
+% epsilonR.core = 2.16;           % Core relative permittivity
+epsilonR.core = 2.1;            % Validation value
 epsilonR.cladding = 2.1;        % Cladding relative permittivity
 epsilonR.air = 1.0;             % Air relative permittivity
 
@@ -51,7 +52,7 @@ Afree = A(freeDofIds, freeDofIds);
 Bfree = B(freeDofIds, freeDofIds);
 sigma = -(k0 * sqrt(epsilonR.cladding))^2;
 options.lossless = true;
-modes = solve_beta_modes(Afree, Bfree, sigma, numberOfModes, options);
+modes = solve_beta_modes(Afree, Bfree, sigma, numberOfModes, k0, options);
 
 % solve_beta_modes uses standard shift-invert on (A - sigma*B)\B, maps
 % lambda = sigma + 1/nu, and checks each residual in the original pencil.
@@ -61,3 +62,4 @@ modes = solve_beta_modes(Afree, Bfree, sigma, numberOfModes, options);
 % TODO: Reconstruct full fields by inserting zeros at PEC-constrained DOFs.
 % TODO: Separate transverse edge coefficients and longitudinal nodal values.
 % TODO: Plot mode profiles and report propagation constants.
+plot_modes(mesh, dofs, pec, modes);

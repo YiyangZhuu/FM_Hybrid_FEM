@@ -17,7 +17,7 @@
 % The matrices A and B must already have PEC-constrained DOFs eliminated.
 % This function does not derive or assemble either matrix.
 
-function modes = solve_beta_modes(A, B, sigma, numberOfModes, options)
+function modes = solve_beta_modes(A, B, sigma, numberOfModes, k0, options)
     if nargin < 5 || isempty(options)
         options = struct();
     end
@@ -96,12 +96,12 @@ function modes = solve_beta_modes(A, B, sigma, numberOfModes, options)
     betaSquared = -lambda;
     betaSquaredIsReal = abs(imag(betaSquared)) <= ...
         options.realEigenvalueTolerance .* max(1, abs(real(betaSquared)));
-    % if options.lossless && any(~betaSquaredIsReal)
-    %    error('solve_beta_modes:ComplexLosslessEigenvalue', ...
-    %        ['A lossless solve produced beta^2 with a significant imaginary ', ...
-    %        'part (maximum relative imaginary part %.3e).'], ...
-    %        max(abs(imag(betaSquared)) ./ max(1, abs(real(betaSquared)))));
-    % end
+    if options.lossless && any(~betaSquaredIsReal)
+        error('solve_beta_modes:ComplexLosslessEigenvalue', ...
+            ['A lossless solve produced beta^2 with a significant imaginary ', ...
+            'part (maximum relative imaginary part %.3e).'], ...
+            max(abs(imag(betaSquared)) ./ max(1, abs(real(betaSquared)))));
+    end
 
     modes.lambda = lambda;
     modes.betaSquared = betaSquared;
@@ -112,6 +112,7 @@ function modes = solve_beta_modes(A, B, sigma, numberOfModes, options)
     modes.relativeResidual = relativeResidual;
     modes.betaSquaredIsReal = betaSquaredIsReal;
     modes.shift = sigma;
+    modes.n_eff = modes.beta ./ k0;
 end
 
 function validate_matrices(A, B)
