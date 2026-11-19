@@ -37,6 +37,7 @@ function [matrixA, matrixB] = assemble_block(mesh, dofs, blockName, ...
     entry = 0;
 
     for element = 1:numberOfElements
+        elementData.k0 = 25;
         elementData.nodes = mesh.elements(element, :);
         elementData.coordinates = mesh.nodes(elementData.nodes, :);
         elementData.domain = mesh.domains(element);
