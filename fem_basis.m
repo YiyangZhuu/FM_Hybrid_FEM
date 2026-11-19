@@ -1,21 +1,14 @@
 % FEM_BASIS
-% First-order triangle bases and reference-cell/edge quadrature rules.
-%   [N, curlN, basisNormal] = fem_basis('vector', element, rule)
+% First-order triangle bases and reference-cell quadrature rules.
+%   [N, curlN] = fem_basis('vector', element, rule)
 %   [N, gradN] = fem_basis('nodal', element, rule)
-%   [trianglePoints, triangleWeights, edgePoints, edgeWeights, edgeIds] = ...
+%   [trianglePoints, triangleWeights] = ...
 %       fem_basis('quadrature', polynomialDegree)
 %
 % Input:
 % element: triangle element data containing coordinates and precomputed
 %          elementJacobianInverseTranspose
-% rule: optional evaluation label 'triangle', 'edge', or 'line'; defaults to 'triangle'
-% 'edge' returns physical vector values at edge quadrature points.
-% 'line' returns physical vector values in N and dot(N, edge normal) in basisNormal.
-% basisNormal is empty for 'triangle' and 'edge'.
-% edgePoints: reference coordinates of the 2-point Gauss rule on each edge
-% edgeWeights: parameter weights (sum 1 on every edge); multiply by physical
-%              edge length to obtain physical line-integration weights
-% edgeIds: local directed edge id (1=1->2, 2=2->3, 3=3->1)
+% rule: optional evaluation label 'triangle'; defaults to 'triangle'
 % Output:
 % N [numReferencePoints x 3]: shape function values evaluated at reference points with reference shape functions
 % gradN [2 x 3]: physical gradient of each nodal shape function, with each
@@ -47,7 +40,7 @@ end
 % each quadrature point, both in x and y.
 % curlBasis stores the curl of each of the three local edge basis functions 
 % at each quadrature point.
-function [basis, curlBasis, basisNormal] = vector_basis(element, rule)
+function [basis, curlBasis] = vector_basis(element, rule)
     if nargin < 2
         rule = 'triangle';
     end
@@ -64,17 +57,6 @@ function [basis, curlBasis, basisNormal] = vector_basis(element, rule)
         end
     end
 
-    basisNormal = [];
-    if strcmp(lower(char(rule)), 'line')
-        edgeNormals = element_edge_normals(element);
-        [~, ~, ~, ~, edgeIds] = quadrature_rule(2);
-        basisNormal = zeros(size(referenceBasis, 1), size(referenceBasis, 2));
-        for point = 1:size(referenceBasis, 1)
-            edge = edgeIds(point);
-            normal = edgeNormals(edge, :);
-            basisNormal(point, :) = squeeze(physicalBasis(point, :, :)) * normal(:);
-        end
-    end
     basis = physicalBasis;
 
     if isfield(element, 'elementJacobianDeterminant')
@@ -107,19 +89,14 @@ end
 function referencePoints = basis_reference_points(rule)
     if ~ischar(rule) && ~isstring(rule)
         error('fem_basis:InvalidRule', ...
-            'Basis evaluation rule must be ''triangle'', ''edge'', or ''line''.');
+            'Basis evaluation rule must be ''triangle''.');
     end
     rule = lower(char(rule));
-    if ~any(strcmp(rule, {'triangle', 'edge', 'line'}))
+    if ~strcmp(rule, 'triangle')
         error('fem_basis:InvalidRule', ...
-            'Basis evaluation rule must be ''triangle'', ''edge'', or ''line''.');
+            'Basis evaluation rule must be ''triangle''.');
     end
-    [trianglePoints, ~, edgePoints] = quadrature_rule(2);
-    if strcmp(rule, 'triangle')
-        referencePoints = trianglePoints;
-    else
-        referencePoints = edgePoints;
-    end
+    [referencePoints, ~] = quadrature_rule(2);
 end
 
 function shapeValues = reference_nodal_basis(referencePoints)
@@ -179,17 +156,7 @@ function varargout = quadrature_rule(polynomialDegree)
         triangleWeights = [1 / 6; 1 / 6; 1 / 6];
     end
 
-    % Two-point Gauss rule on t in [0,1] for each directed local edge.
-    % It integrates polynomials through degree 3 along an edge.
-    gaussParameters = (1 / 2) + (1 / (2 * sqrt(3))) * [-1; 1];
-    edgePoints = [...
-        1 - gaussParameters, gaussParameters * 0; ...
-        gaussParameters, 1 - gaussParameters; ...
-        gaussParameters * 0, 1 - gaussParameters];
-    edgeWeights = 1 / 2 * ones(6, 1);
-    edgeIds = [1; 1; 2; 2; 3; 3];
-
-    varargout = {trianglePoints, triangleWeights, edgePoints, edgeWeights, edgeIds};
+    varargout = {trianglePoints, triangleWeights};
 end
 
 function validate_basis_inputs(element, rule)
@@ -222,32 +189,11 @@ function validate_basis_inputs(element, rule)
     end
     if ~ischar(rule) && ~isstring(rule)
         error('fem_basis:InvalidRule', ...
-            'Basis evaluation rule must be ''triangle'', ''edge'', or ''line''.');
+            'Basis evaluation rule must be ''triangle''.');
     end
     rule = lower(char(rule));
-    if ~any(strcmp(rule, {'triangle', 'edge', 'line'}))
+    if ~strcmp(rule, 'triangle')
         error('fem_basis:InvalidRule', ...
-            'Basis evaluation rule must be ''triangle'', ''edge'', or ''line''.');
-    end
-    if strcmp(rule, 'line')
-        edgeNormals = element_edge_normals(element);
-        if ~isnumeric(edgeNormals) || ~isequal(size(edgeNormals), [3, 2]) || ...
-                any(~isfinite(edgeNormals(:)))
-            error('fem_basis:InvalidElementEdgeNormals', ...
-                'Element elementEdgeNormals must be a finite 3-by-2 array.');
-        end
-    end
-end
-
-function edgeNormals = element_edge_normals(element)
-    if isfield(element, 'elementEdgeNormals')
-        edgeNormals = element.elementEdgeNormals;
-    elseif isfield(element, 'elementNormals')
-        edgeNormals = element.elementNormals;
-    elseif isfield(element, 'normal')
-        edgeNormals = element.normal;
-    else
-        error('fem_basis:MissingElementEdgeNormals', ...
-            'Line-rule vector basis requires elementEdgeNormals or elementNormals.');
+            'Basis evaluation rule must be ''triangle''.');
     end
 end
