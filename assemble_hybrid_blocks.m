@@ -17,11 +17,22 @@ function [A, B, blocks] = assemble_hybrid_blocks(mesh, dofs)
         mesh, dofs, 'Kzt', 'scalar', 'vector', numberOfNodes, numberOfEdges);
     [blocks.A.Kzz, blocks.B.Kzz] = assemble_block( ...
         mesh, dofs, 'Kzz', 'scalar', 'scalar', numberOfNodes, numberOfNodes);
-
+    
     A = [blocks.A.Ktt, blocks.A.Ktz; ...
         blocks.A.Kzt, blocks.A.Kzz];
     B = [blocks.B.Ktt, blocks.B.Ktz; ...
         blocks.B.Kzt, blocks.B.Kzz];
+    
+    % Checks
+    fprintf('A symmetry error: %.3e\n', ...
+        norm(A - A.', 'fro') / norm(A, 'fro'));
+    fprintf('B symmetry error: %.3e\n', ...
+        norm(B - B.', 'fro') / norm(B, 'fro'));
+    fprintf('Ktt A: %.3e\n', norm(blocks.A.Ktt, 'fro'));
+    fprintf('Ktt B: %.3e\n', norm(blocks.B.Ktt, 'fro'));
+    fprintf('Ktz B: %.3e\n', norm(blocks.B.Ktz, 'fro'));
+    fprintf('Kzt B: %.3e\n', norm(blocks.B.Kzt, 'fro'));
+    fprintf('Kzz B: %.3e\n', norm(blocks.B.Kzz, 'fro'));
 end
 
 function [matrixA, matrixB] = assemble_block(mesh, dofs, blockName, ...
@@ -37,7 +48,7 @@ function [matrixA, matrixB] = assemble_block(mesh, dofs, blockName, ...
     entry = 0;
 
     for element = 1:numberOfElements
-        elementData.k0 = 25;
+        elementData.k0 = mesh.k0;
         elementData.nodes = mesh.elements(element, :);
         elementData.coordinates = mesh.nodes(elementData.nodes, :);
         elementData.domain = mesh.domains(element);

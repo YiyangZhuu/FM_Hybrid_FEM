@@ -24,19 +24,22 @@ function [localA, localB] = calculate_integral(blockName, elementData)
 
     % The vector basis has unit edge-circulation normalization; scale each
     % local edge function by its edge length for tangential-field DOFs.
-    edgeLengths = elementData.elementEdgeLengths;
-    Nt = bsxfun(@times, Nt, reshape(edgeLengths, 1, 3, 1));
-    curlNt = bsxfun(@times, curlNt, edgeLengths);
+    %edgeLengths = elementData.elementEdgeLengths;
+    %Nt = bsxfun(@times, Nt, reshape(edgeLengths, 1, 3, 1));
+    %curlNt = bsxfun(@times, curlNt, edgeLengths);
+    %Nz = bsxfun(@times, Nz, reshape(edgeLengths, 1, 3, 1));
+    %gradNz = bsxfun(@times, gradNz, edgeLengths);
 
     jacobianDeterminant = elementData.elementJacobianDeterminant;
 
     vectorMass = Nt(:, :, 1).' * (weights .* Nt(:, :, 1)) + ...
-        Nt(:, :, 2).' * (weights .* Nt(:, :, 2));
+                 Nt(:, :, 2).' * (weights .* Nt(:, :, 2));
     scalarMass = Nz.' * (weights .* Nz);
     integratedNtX = Nt(:, :, 1).' * weights;
     integratedNtY = Nt(:, :, 2).' * weights;
 
     % TODO: write area integral as a different term
+    % QUESTION: do we still need this?
     % example: areaIntegralCurlCurl = jacobianDeterminant * ( ...
     %            curlNt.' * (weights .* curlNt) - ...
     %            elementData.k0^2 * elementData.relativePermittivity * vectorMass);
@@ -52,14 +55,17 @@ function [localA, localB] = calculate_integral(blockName, elementData)
                 integratedNtX * gradNz(1, :) + ...
                 integratedNtY * gradNz(2, :));
         case 'KZT'
-             localB = -elementData.k0^2 * ( ...     % TODO: where does this k0 comes from? Do we have k0 here?
-                        jacobianDeterminant * ( ...
-                            gradNz(1, :).'*integratedNtX.' + ...
-                            gradNz(2, :).'*integratedNtY.'));
+            localB = jacobianDeterminant * ( ...
+                gradNz(1, :).'*integratedNtX.' + ...
+                gradNz(2, :).'*integratedNtY.');
         case 'KZZ'
-            localB = jacobianDeterminant * ...
+            localB = jacobianDeterminant * (...
                 elementData.k0^2 * elementData.relativePermittivity * scalarMass - ...
-                elementData.elementArea * (gradNz.' * gradNz);
+                sum(weights) * (gradNz.' * gradNz));
+                %(gradNz.' * (weights.' .* gradNz)));   % I actually like
+                % this way of adding weights but idk why it does not work.
+            
+                
         otherwise
             error('calculate_integral:UnknownBlock', ...
                 'Unknown matrix block "%s".', blockName);

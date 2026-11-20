@@ -19,7 +19,7 @@ function plot_modes(mesh, dofs, pec, modes)
         axis equal tight;
         colorbar;
         title(sprintf('%d:, n_{eff} = %s', mode, ...
-            num2str(modes.n_eff(mode), '%.4g')));
+            num2str(modes.n_eff(mode), '%.5g')));
         xlabel('x');
         ylabel('y');
     end

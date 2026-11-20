@@ -1,6 +1,6 @@
 %% Physical and numerical parameters
 k0 = 25;                      % Free-space wavenumber [1/m] between [18, 25]
-% epsilonR.core = 2.16;           % Core relative permittivity
+%epsilonR.core = 2.16;           % Core relative permittivity
 epsilonR.core = 2.1;            % Validation value
 epsilonR.cladding = 2.1;        % Cladding relative permittivity
 epsilonR.air = 1.0;             % Air relative permittivity
@@ -52,11 +52,9 @@ Afree = A(freeDofIds, freeDofIds);
 Bfree = B(freeDofIds, freeDofIds);
 sigma = -(k0 * sqrt(epsilonR.cladding))^2;
 options.lossless = true;
-modes = solve_beta_modes(Afree, Bfree, sigma, numberOfModes, k0, options);
-
 % solve_beta_modes uses standard shift-invert on (A - sigma*B)\B, maps
 % lambda = sigma + 1/nu, and checks each residual in the original pencil.
-% This call must wait until the derivation identifies A and B.
+modes = solve_beta_modes(Afree, Bfree, sigma, numberOfModes, k0, options);
 
 %% Mode post-processing and visualization
 % TODO: Reconstruct full fields by inserting zeros at PEC-constrained DOFs.
