@@ -5,7 +5,7 @@ This is a project for the course "_Physical modeling and simulation_". Topic is 
 ## TODOs
 1. __Implement the integral form.__
 2. __Reuse the integral calculation in the example as much as possible.__
-3. __Add plot to reconstruct the electrical field and the mode.__
+3. __Add plots to reconstruct the electrical field and the mode.__ (implemented in `plot_utils.m`)
 4. __use a function to determine refractive index n based on n(x,y)?__
 
 
@@ -45,6 +45,9 @@ on the exterior boundary; duplicate records are preserved.
 - `solve_beta_modes.m` solves a generalized eigenvalue pencil `A*x =
   lambda*B*x` near a shift using standard shift-invert. It does not derive
   or assemble `A` and `B`; those must come from the weak-form derivation.
+- `plot_utils.m` exposes individual plotting actions for the transverse
+  magnitude, longitudinal magnitude, real longitudinal field, transverse
+  vectors, and total field. Its `plot_modes` action combines all five plots.
 
 ## Remaining mathematical work
 

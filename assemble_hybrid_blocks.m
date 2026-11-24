@@ -24,15 +24,15 @@ function [A, B, blocks] = assemble_hybrid_blocks(mesh, dofs)
         blocks.B.Kzt, blocks.B.Kzz];
     
     % Checks
-    fprintf('A symmetry error: %.3e\n', ...
-        norm(A - A.', 'fro') / norm(A, 'fro'));
-    fprintf('B symmetry error: %.3e\n', ...
-        norm(B - B.', 'fro') / norm(B, 'fro'));
-    fprintf('Ktt A: %.3e\n', norm(blocks.A.Ktt, 'fro'));
-    fprintf('Ktt B: %.3e\n', norm(blocks.B.Ktt, 'fro'));
-    fprintf('Ktz B: %.3e\n', norm(blocks.B.Ktz, 'fro'));
-    fprintf('Kzt B: %.3e\n', norm(blocks.B.Kzt, 'fro'));
-    fprintf('Kzz B: %.3e\n', norm(blocks.B.Kzz, 'fro'));
+    % fprintf('A symmetry error: %.3e\n', ...
+    %     norm(A - A.', 'fro') / norm(A, 'fro'));
+    % fprintf('B symmetry error: %.3e\n', ...
+    %     norm(B - B.', 'fro') / norm(B, 'fro'));
+    % fprintf('Ktt A: %.3e\n', norm(blocks.A.Ktt, 'fro'));
+    % fprintf('Ktt B: %.3e\n', norm(blocks.B.Ktt, 'fro'));
+    % fprintf('Ktz B: %.3e\n', norm(blocks.B.Ktz, 'fro'));
+    % fprintf('Kzt B: %.3e\n', norm(blocks.B.Kzt, 'fro'));
+    % fprintf('Kzz B: %.3e\n', norm(blocks.B.Kzz, 'fro'));
 end
 
 function [matrixA, matrixB] = assemble_block(mesh, dofs, blockName, ...

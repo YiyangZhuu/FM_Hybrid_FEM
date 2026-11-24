@@ -1,7 +1,7 @@
 %% Physical and numerical parameters
 k0 = 25;                      % Free-space wavenumber [1/m] between [18, 25]
-%epsilonR.core = 2.16;           % Core relative permittivity
-epsilonR.core = 2.1;            % Validation value
+epsilonR.core = 2.16;           % Core relative permittivity
+%epsilonR.core = 2.1;            % Validation value
 epsilonR.cladding = 2.1;        % Cladding relative permittivity
 epsilonR.air = 1.0;             % Air relative permittivity
 
@@ -57,7 +57,7 @@ options.lossless = true;
 modes = solve_beta_modes(Afree, Bfree, sigma, numberOfModes, k0, options);
 
 %% Mode post-processing and visualization
-% TODO: Reconstruct full fields by inserting zeros at PEC-constrained DOFs.
-% TODO: Separate transverse edge coefficients and longitudinal nodal values.
-% TODO: Plot mode profiles and report propagation constants.
-plot_modes(mesh, dofs, pec, modes);
+% plot_utils contains the combined plot_modes routine and the individual
+% field-plot actions.
+% TODO: Report propagation constants.
+plot_utils('plot_modes', mesh, dofs, pec, modes);
